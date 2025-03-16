@@ -1,2 +1,4 @@
 # dataDawgs_ByteCamp2025
-ByteCamp Hackathon S-Park MVP
+
+S-Park: Smart Parking Solution - ByteCamp Hackathon MVP
+
