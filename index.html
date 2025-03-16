@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>S-Park | Smart Parking Solutions</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="styles.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-firestore.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        /* Timer tab styles */
+        #timerOverlay {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #2b3245;
+            color: white;
+            padding: 15px 40px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            display: none;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .timer-title {
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 5px;
+        }
+
+        #timer {
+            font-size: 32px;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            display: block;
+            margin-bottom: 15px;
+        }
+
+        #stopTimerBtn {
+            background: #e53935;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 6px rgba(229, 57, 53, 0.3);
+        }
+
+        #stopTimerBtn:hover {
+            background: #d32f2f;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(229, 57, 53, 0.4);
+        }
+
+        .map-legend {
+            transition: opacity 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <header class="main-header">
+        <div class="header-content">
+            <button class="menu-toggle" aria-label="Open menu">
+                <span class="menu-bar"></span>
+                <span class="menu-bar"></span>
+                <span class="menu-bar"></span>
+            </button>
+            <h1 class="logo">S-<span class="logo-accent">Park</span></h1>
+            <button class="search-toggle" aria-label="Toggle search">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+            </button>
+            <div class="user-controls">
+                <button class="user-icon" aria-label="User account">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="#FFD700" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="search-container">
+            <div class="search-wrapper">
+                <input type="text" class="search-input" placeholder="Search for parking spots..." aria-label="Search">
+                <button class="search-submit" aria-label="Search">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <nav class="side-menu">
+        <div class="menu-header">
+            <button class="close-menu" aria-label="Close menu">&times;</button>
+        </div>
+        <div class="menu-items">
+            <a href="#" class="menu-item" data-content="rates">Standard Rates</a>
+            <a href="#" class="menu-item" data-content="terms">Terms & Conditions</a>
+            <a href="#" class="menu-item" data-content="privacy">Privacy Policy</a>
+            <a href="#" class="menu-item" data-content="rent">Rent Out Your Spot</a>
+        </div>
+        
+        <div class="menu-content">
+            <div id="rates" class="content-section">
+                <h2>Standard Rates</h2>
+                <h3>Roadside Parking</h3>
+                <p>8:00 AM - 11:00 AM: ₹180/hour</p>
+                <p>5:00 PM - 9:00 PM: ₹180/hour</p>
+                <p>Other times: ₹60/hour</p>
+                <p>12:00 AM - 5:00 AM: Free</p>
+                
+                <h3>Building Parking</h3>
+                <p>Fixed rate: ₹50/hour</p>
+                
+                <h3>BMC Parking</h3>
+                <p>Fixed rate: ₹50/hour</p>
+            </div>
+            
+            <div id="terms" class="content-section">
+                <h2>Terms & Conditions</h2>
+                <p>By using S-Park services, you agree to:</p>
+                <ul>
+                    <li>Park only in designated spots</li>
+                    <li>Pay applicable fees on time</li>
+                    <li>Follow local parking regulations</li>
+                    <li>Not hold S-Park liable for vehicle damage</li>
+                </ul>
+            </div>
+            
+            <div id="privacy" class="content-section">
+                <h2>Privacy Policy</h2>
+                <p>We collect and process:</p>
+                <ul>
+                    <li>License plate information</li>
+                    <li>Payment details</li>
+                    <li>Location data</li>
+                    <li>Usage statistics</li>
+                </ul>
+                <p>Data is stored securely and never shared with third parties.</p>
+            </div>
+            
+            <div id="rent" class="content-section">
+                <h2>Rent Out Your Spot</h2>
+                <p>Contact us to list your parking spot:</p>
+                <a href="mailto:parking@s-park.com">parking@s-park.com</a>
+                <p>or call: +91 1234567890</p>
+            </div>
+        </div>
+    </nav>
+
+    <div id="map-container"></div>
+
+    <div class="map-legend">
+        <h3>Parking Types</h3>
+        <div class="legend-item">
+            <div class="legend-marker orange"></div>
+            <span>Roadside Parking</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-marker blue"></div>
+            <span>Building Parking</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-marker yellow"></div>
+            <span>BMC Parking</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-marker grey"></div>
+            <span>Free Parking</span>
+        </div>
+    </div>
+
+    <!-- Timer Overlay -->
+    <div id="timerOverlay">
+        <div class="timer-title">Time Spent Parked</div>
+        <span id="timer">00:00:00</span>
+        <button id="stopTimerBtn" onclick="stopTimer()">Stop & Pay</button>
+    </div>
+
+    <!-- Auth Modal -->
+    <div id="authModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div class="auth-tabs">
+                <button class="tab-btn active" data-tab="login">Login</button>
+                <button class="tab-btn" data-tab="signup">Sign Up</button>
+            </div>
+            
+            <!-- Add logout button -->
+            <div id="logoutSection" style="display: none; text-align: center; padding: 20px;">
+                <p style="margin-bottom: 15px; font-size: 16px;">Logged in as <span id="userEmail" style="font-weight: 600;"></span></p>
+                <button onclick="logout()" class="logout-btn">LOGOUT</button>
+            </div>
+            
+            <div id="loginForm" class="auth-form active">
+                <h2>Login</h2>
+                <input type="email" id="loginEmail" placeholder="Email" required>
+                <input type="password" id="loginPassword" placeholder="Password" required>
+                <button onclick="login()">Login</button>
+            </div>
+            
+            <div id="signupForm" class="auth-form">
+                <h2>Sign Up</h2>
+                <input type="email" id="signupEmail" placeholder="Email" required>
+                <input type="password" id="signupPassword" placeholder="Password" required>
+                <input type="text" id="vehicleNumber" placeholder="Vehicle Number Plate" required>
+                <button onclick="signup()">Sign Up</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add server config before other scripts -->
+    <script src="server_config.js"></script>
+    <script src="auth.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="script.js" defer></script>
+</body>
+</html>
